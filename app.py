@@ -140,25 +140,8 @@ if run_analysis and product:
 
     # Step 4: User Agent (Feedback)
     with st.expander("Step 4: Your Feedback (User Agent)"):
-        feedback = st.radio("Do you agree with the recommendation?", ["Yes", "No - Revise"], index=0)
-        if 'feedback_log' not in st.session_state:
-            st.session_state['feedback_log'] = []
-
-        feedback_entry = {'product': product, 'feedback': feedback, 'timestamp': str(datetime.datetime.now())}
-
-        if feedback == "No - Revise":
-            revised_input = st.text_area("What would you like the strategy to focus on instead?")
-            if revised_input:
-                feedback_entry['revision'] = revised_input
-                st.warning("Strategy agent would re-run with your revised focus.")
-                timeline_log.append({"step": "User Agent Revision", "timestamp": str(datetime.datetime.now()), "status": "Received revision input from user."})
-        else:
-            timeline_log.append({"step": "User Agent Feedback", "timestamp": str(datetime.datetime.now()), "status": "User agreed with recommendation."})
-
-        st.session_state['feedback_log'].append(feedback_entry)
-
-        st.markdown("**Session Feedback Log:**")
-        st.json(st.session_state['feedback_log'])
+        st.info("Thank you for reviewing the recommendation. Your feedback helps us improve.")
+        timeline_log.append({"step": "User Agent Feedback", "timestamp": str(datetime.datetime.now()), "status": "Feedback module displayed."})
 
     output_records.append({
         'product': product,
