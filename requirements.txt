@@ -8,3 +8,4 @@ torch
 keybert
 sentence-transformers
 feedparser
+scikit-learn

@@ -3,7 +3,7 @@
 
 import streamlit as st
 import matplotlib.pyplot as plt
-from strategy_agent import generate_strategy
+from strategy_agent import generate_strategy_llm
 import os
 import pandas as pd
 import re
@@ -13,6 +13,8 @@ import time
 from transformers import pipeline
 from keybert import KeyBERT
 import feedparser
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
 
 st.set_page_config(page_title="Agentic Social Listening Advisor", layout="wide")
 
@@ -103,15 +105,15 @@ if run_analysis and product:
 
         timeline_log.append({"step": "Sentiment+Theme Agent", "timestamp": str(datetime.datetime.now()), "status": f"Analyzed {len(mentions)} posts."})
 
-    # Step 3: Strategy Agent
-    with st.expander("Step 3: Strategy Agent"):
-        st.write("🧐 Generating recommendation based on sentiment and themes...")
-        strategy = generate_strategy(sentiment_counts, themes)
+    # Step 3: Strategy Agent with LLM
+    with st.expander("Step 3: Strategy Agent (LLM-Based)"):
+        st.write("🧐 Generating recommendation using open-source LLM...")
+        strategy = generate_strategy_llm(sentiment_counts, themes, product)
         st.markdown("**Recommended Action:**")
         st.success(strategy['recommendation'])
         st.markdown("**Suggested Tweet:**")
         st.code(strategy['tweet'])
-        timeline_log.append({"step": "Strategy Agent", "timestamp": str(datetime.datetime.now()), "status": "Generated action plan and draft tweet."})
+        timeline_log.append({"step": "Strategy Agent", "timestamp": str(datetime.datetime.now()), "status": "Generated action plan and draft tweet using LLM."})
 
     # Step 4: User Agent (Feedback)
     with st.expander("Step 4: Your Feedback (User Agent)"):

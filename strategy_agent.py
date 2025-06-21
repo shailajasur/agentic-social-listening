@@ -1,19 +1,29 @@
-# strategy_agent.py
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
 
-def generate_strategy(sentiment_counts, themes):
-    total = sum(sentiment_counts.values())
-    positive_ratio = sentiment_counts.get("positive", 0) / total if total > 0 else 0
-    negative_ratio = sentiment_counts.get("negative", 0) / total if total > 0 else 0
+def generate_strategy_llm(sentiment_counts, themes, product_name):
+    model_name = "tiiuae/falcon-7b-instruct"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(model_name)
 
-    if negative_ratio > 0.4:
-        recommendation = "Address key concerns raised by users and consider a public response campaign."
-    elif positive_ratio > 0.5:
-        recommendation = "Capitalize on the positive sentiment with a targeted promotion or success story."
-    else:
-        recommendation = "Engage with your community to boost awareness and monitor evolving feedback."
+    sentiment_summary = ", ".join([f"{k}: {v}" for k, v in sentiment_counts.items()])
+    top_themes = ", ".join(sorted(themes.keys(), key=lambda k: themes[k]['count'], reverse=True)[:5])
 
-    top_theme = max(themes.items(), key=lambda x: x[1]["count"])[0] if themes else "engagement"
-    tweet = f"Our team is listening! We're working to improve your experience around {top_theme.lower()} — stay tuned. 💡 #CustomerVoice"
+    prompt = (
+        f"You are a marketing strategist.\n"
+        f"Product: {product_name}\n"
+        f"Sentiment breakdown: {sentiment_summary}\n"
+        f"Key themes: {top_themes}\n\n"
+        f"Give a strategic recommendation and a suggested tweet in response to this data."
+    )
+
+    inputs = tokenizer(prompt, return_tensors="pt")
+    outputs = model.generate(**inputs, max_new_tokens=150)
+    generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    # Postprocess to split recommendation and tweet if structured properly
+    recommendation = generated_text.split("Suggested tweet:")[0].strip()
+    tweet = generated_text.split("Suggested tweet:")[-1].strip()
 
     return {
         "recommendation": recommendation,
