@@ -71,13 +71,13 @@ if run_analysis and product:
                 st.write(f"• {m}")
         timeline_log.append({"step": "Listener Agent", "timestamp": str(datetime.datetime.now()), "status": f"Fetched {len(mentions)} mentions."})
 
-    # Step 2: Theme+Sentiment Agent with GPT-4o
-    with st.expander("Step 2: Theme & Sentiment Agent (GPT-4o Powered)"):
-        st.write("📊 Analyzing sentiment and extracting major themes with GPT-4o...")
+    # Step 2: Theme+Sentiment Agent with GPT-3.5
+    with st.expander("Step 2: Theme & Sentiment Agent (GPT-3.5 Powered)"):
+        st.write("📊 Analyzing sentiment and extracting major themes with GPT-3.5...")
         openai_client = OpenAI(api_key=OPENAI_API_KEY)
         response = safe_chat_completion(
             openai_client,
-            "gpt-4o",
+            "gpt-3.5-turbo",
             [
                 {"role": "system", "content": "You are a social insights analyst. Classify sentiment (Positive, Negative, Neutral) for each post, and extract top 3 common themes."},
                 {"role": "user", "content": f"Here are the mentions:\n" + "\n".join(mentions)}
