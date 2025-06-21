@@ -53,8 +53,8 @@ if run_analysis and product:
     with st.expander("Step 2: Theme & Sentiment Agent (Open Source)"):
         st.write("📊 Analyzing sentiment and extracting themes using HuggingFace + KeyBERT...")
 
-        # Load sentiment model
-        sentiment_model = pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment")
+        # ✅ Replaced with plug-and-play sentiment model for reliability
+        sentiment_model = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
         keyword_extractor = KeyBERT()
 
         sentiment_counts = defaultdict(int)
