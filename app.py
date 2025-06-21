@@ -42,7 +42,14 @@ if run_analysis and product:
         ]
         mentions = []
         for url in feed_urls:
+            st.subheader(f"📰 Raw Feed Preview for {url}")
             feed = feedparser.parse(url)
+            for entry in feed.entries[:5]:  # Show a few entries for debug
+                st.write("🔹 Title:", entry.title)
+                st.write("🔹 Summary:", entry.get("summary", ""))
+                st.write("🔹 Link:", entry.link)
+                st.markdown("---")
+
             for entry in feed.entries:
                 if product.lower() in entry.title.lower() or product.lower() in entry.get("summary", "").lower():
                     mention_text = f"{entry.title}. {entry.get('summary', '')}"
@@ -98,7 +105,7 @@ if run_analysis and product:
 
     # Step 3: Strategy Agent
     with st.expander("Step 3: Strategy Agent"):
-        st.write("🤔 Generating recommendation based on sentiment and themes...")
+        st.write("🧐 Generating recommendation based on sentiment and themes...")
         strategy = generate_strategy(sentiment_counts, themes)
         st.markdown("**Recommended Action:**")
         st.success(strategy['recommendation'])
