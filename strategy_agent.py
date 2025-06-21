@@ -1,55 +1,51 @@
 # strategy_agent.py
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
-# 🧠 Strategy Agent - Agentic because it reasons over prior insights
-# and generates domain-specific, actionable business guidance without manual prompting
+# 🔮 Strategy Agent
+# Agentic traits: reasons independently, generates domain-specific advice from upstream agent outputs
 
 def generate_strategy_llm(sentiment_counts, themes, product_name):
     """
     This agent:
-    - Interprets sentiment analysis and key themes
-    - Generates a strategic recommendation + marketing tweet
-    - Uses a small local language model to simulate autonomy
+    - Reads structured sentiment + theme data
+    - Crafts a business recommendation and tweet
+    - Uses a local open-source LLM (gpt2)
     """
 
-    model_name = "sshleifer/tiny-gpt2"  # ✅ Lightweight model for Streamlit compatibility
+    model_name = "gpt2"  # Using gpt2 for better coherence vs tiny models
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(model_name)
 
-    # Format input into a structured prompt
+    # Compile data into a prompt
     sentiment_summary = ", ".join([f"{k}: {v}" for k, v in sentiment_counts.items()])
     top_themes = ", ".join(sorted(themes.keys(), key=lambda k: themes[k]['count'], reverse=True)[:3])
 
     prompt = (
-        f"You are a strategic AI agent helping a company understand feedback.\n\n"
         f"Product: {product_name}\n"
         f"Sentiment Summary: {sentiment_summary}\n"
         f"Top Themes: {top_themes}\n\n"
-        f"Based on this data, provide:\n"
-        f"1. A short business recommendation\n"
-        f"2. A sample tweet the product team could post\n\n"
-        f"Output Format:\n"
+        f"Write a brief business recommendation and a sample social media tweet.\n"
+        f"Format:\n"
         f"Recommendation: <text>\n"
-        f"Tweet: <text>\n"
+        f"Tweet: <text>"
     )
 
-    # Generate output
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True)
-    outputs = model.generate(**inputs, max_new_tokens=100)
-    generated = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    outputs = model.generate(**inputs, max_new_tokens=100, temperature=0.7)
+    output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-    # Parse response
-    recommendation = "Review customer feedback for further optimization."
-    tweet = "Thanks for sharing your experience with us!"
+    # Attempt to parse
+    recommendation = "Focus on addressing top themes in upcoming releases."
+    tweet = "Thanks for the feedback! We're making improvements based on your input."
 
-    if "Recommendation:" in generated and "Tweet:" in generated:
+    if "Recommendation:" in output_text and "Tweet:" in output_text:
         try:
-            recommendation = generated.split("Recommendation:")[1].split("Tweet:")[0].strip()
-            tweet = generated.split("Tweet:")[1].strip()
-        except:
-            pass  # fallback to defaults
+            recommendation = output_text.split("Recommendation:")[1].split("Tweet:")[0].strip()
+            tweet = output_text.split("Tweet:")[1].strip()
+        except Exception:
+            pass  # fallback to default strings
 
     return {
         "recommendation": recommendation,
