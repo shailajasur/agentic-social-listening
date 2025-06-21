@@ -119,7 +119,8 @@ if run_analysis and product:
         top_theme = max(themes.items(), key=lambda x: x[1]["count"])[0] if themes else "product feedback"
         tweet = f"Thanks for your thoughts on {product}! We're exploring ways to improve {top_theme} based on your feedback."
 
-        if st.checkbox("Use open-source LLM to rewrite tweet?"):
+        use_llm = st.toggle("Use open-source LLM to rewrite tweet?", value=False)
+        if use_llm:
             with st.spinner("🤖 Enhancing tweet using distilgpt2..."):
                 tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
                 model = AutoModelForCausalLM.from_pretrained("distilgpt2")
