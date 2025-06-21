@@ -3,3 +3,7 @@ matplotlib
 openai
 pandas
 snscrape
+transformers
+torch
+keybert
+sentence-transformers
