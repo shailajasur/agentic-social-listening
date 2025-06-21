@@ -1,5 +1,5 @@
 # 📁 agentic_social_listening
-# Streamlit-based Agentic Social Listening Dashboard (Reddit-Based Version)
+# Streamlit-based Agentic Social Listening Dashboard (RSS/News-Based Version)
 
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -12,13 +12,13 @@ import datetime
 import time
 from transformers import pipeline
 from keybert import KeyBERT
-import requests
+import feedparser
 
 st.set_page_config(page_title="Agentic Social Listening Advisor", layout="wide")
 
 # Title
 st.title("📣 Agentic Social Listening Advisor")
-st.markdown("Enter a product or brand name to analyze recent Reddit posts, extract sentiment and themes, and generate strategic recommendations.")
+st.markdown("Enter a product or brand name to analyze recent news articles, extract sentiment and themes, and generate strategic recommendations.")
 
 # User Input
 product = st.text_input("🔍 Product/Brand Name", placeholder="e.g., Apple Vision Pro")
@@ -32,20 +32,24 @@ if run_analysis and product:
     timeline_log = []  # Timeline for agent step-by-step recording
     output_records = []  # Persisted output records
 
-    # Step 1: Listener Agent using Reddit Pushshift API
-    with st.expander("Step 1: Listener Agent - Collect Mentions from Reddit"):
-        st.write("🛠️ Collecting recent mentions from Reddit using Pushshift API...")
-        url = f"https://api.pushshift.io/reddit/search/comment/?q={product}&size=10&sort=desc"
-        response = requests.get(url)
+    # Step 1: Listener Agent using RSS feeds
+    with st.expander("Step 1: Listener Agent - Collect Mentions from News Feeds"):
+        st.write("🛠️ Collecting recent mentions from RSS news feeds...")
+        feed_urls = [
+            "http://feeds.bbci.co.uk/news/rss.xml",
+            "http://rss.cnn.com/rss/edition.rss",
+            "https://www.theverge.com/rss/index.xml"
+        ]
         mentions = []
-        if response.status_code == 200:
-            data = response.json()
-            for item in data.get("data", []):
-                if 'body' in item:
-                    mentions.append(item['body'])
+        for url in feed_urls:
+            feed = feedparser.parse(url)
+            for entry in feed.entries:
+                if product.lower() in entry.title.lower() or product.lower() in entry.get("summary", "").lower():
+                    mention_text = f"{entry.title}. {entry.get('summary', '')}"
+                    mentions.append(mention_text)
 
         if not mentions:
-            st.warning("No Reddit mentions found. Using fallback demo data.")
+            st.warning("No news mentions found. Using fallback demo data.")
             mentions = [
                 f"Just tried the new {product} — absolutely mind-blowing! 😍",
                 f"Not impressed by {product}, expected more for the price. 😕",
@@ -56,7 +60,7 @@ if run_analysis and product:
 
         for m in mentions:
             st.write(f"• {m}")
-        timeline_log.append({"step": "Listener Agent", "timestamp": str(datetime.datetime.now()), "status": f"Fetched {len(mentions)} Reddit mentions."})
+        timeline_log.append({"step": "Listener Agent", "timestamp": str(datetime.datetime.now()), "status": f"Fetched {len(mentions)} news mentions."})
 
     # Step 2: Sentiment & Theme Extraction Agent (Open Source)
     with st.expander("Step 2: Theme & Sentiment Agent (Open Source)"):
