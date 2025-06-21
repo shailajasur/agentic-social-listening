@@ -1,9 +1,8 @@
 # 📁 agentic_social_listening
-# Streamlit-based Agentic Social Listening Dashboard
+# Streamlit-based Agentic Social Listening Dashboard (GPT-Free Version)
 
 import streamlit as st
 import matplotlib.pyplot as plt
-from openai import OpenAI
 from strategy_agent import generate_strategy
 import os
 import subprocess
@@ -12,12 +11,10 @@ import re
 from collections import defaultdict
 import datetime
 import time
-import openai
+from transformers import pipeline
+from keybert import KeyBERT
 
 st.set_page_config(page_title="Agentic Social Listening Advisor", layout="wide")
-
-# Set OpenAI API key from environment variable or manual entry
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Title
 st.title("📣 Agentic Social Listening Advisor")
@@ -28,25 +25,6 @@ product = st.text_input("🔍 Product/Brand Name", placeholder="e.g., Apple Visi
 
 # Trigger button
 run_analysis = st.button("Run Analysis")
-
-# Retry wrapper for GPT call with usage logging
-usage_log = []
-
-def safe_chat_completion(client, model, messages, retries=3, delay=5):
-    for attempt in range(retries):
-        try:
-            response = client.chat.completions.create(model=model, messages=messages)
-            usage = response.usage if hasattr(response, 'usage') else {}
-            usage_log.append({"timestamp": str(datetime.datetime.now()), "tokens": usage})
-            return response
-        except openai.RateLimitError:
-            st.warning(f"Rate limit hit. Retrying ({attempt + 1}/{retries}) in {delay} seconds...")
-            time.sleep(delay * (attempt + 1))
-        except openai.OpenAIError as e:
-            st.error(f"OpenAI API error: {str(e)}")
-            break
-    st.error("❌ GPT API failed after multiple retries.")
-    return None
 
 if run_analysis and product:
     st.markdown("---")
@@ -62,7 +40,7 @@ if run_analysis and product:
         raw_output = result.stdout
         mentions = []
         for line in raw_output.splitlines():
-            if line.strip().startswith(product):
+            if line.strip():
                 mentions.append(line.strip())
         if not mentions:
             st.warning("No real-time mentions found. Try another term or check your snscrape setup.")
@@ -71,36 +49,27 @@ if run_analysis and product:
                 st.write(f"• {m}")
         timeline_log.append({"step": "Listener Agent", "timestamp": str(datetime.datetime.now()), "status": f"Fetched {len(mentions)} mentions."})
 
-    # Step 2: Theme+Sentiment Agent with GPT-3.5
-    with st.expander("Step 2: Theme & Sentiment Agent (GPT-3.5 Powered)"):
-        st.write("📊 Analyzing sentiment and extracting major themes with GPT-3.5...")
-        openai_client = OpenAI(api_key=OPENAI_API_KEY)
-        response = safe_chat_completion(
-            openai_client,
-            "gpt-3.5-turbo",
-            [
-                {"role": "system", "content": "You are a social insights analyst. Classify sentiment (Positive, Negative, Neutral) for each post, and extract top 3 common themes."},
-                {"role": "user", "content": f"Here are the mentions:\n" + "\n".join(mentions)}
-            ]
-        )
-        if not response:
-            st.stop()
+    # Step 2: Sentiment & Theme Extraction Agent (Open Source)
+    with st.expander("Step 2: Theme & Sentiment Agent (Open Source)"):
+        st.write("📊 Analyzing sentiment and extracting themes using HuggingFace + KeyBERT...")
 
-        parsed = response.choices[0].message.content
-        st.markdown("**GPT Analysis Output:**")
-        st.text(parsed)
+        # Load sentiment model
+        sentiment_model = pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment")
+        keyword_extractor = KeyBERT()
 
         sentiment_counts = defaultdict(int)
-        themes = {}
-        for line in parsed.splitlines():
-            sentiment_match = re.search(r"Sentiment: (Positive|Negative|Neutral)", line)
-            theme_match = re.findall(r"Theme: ([^\n,]+)", line)
-            if sentiment_match:
-                sentiment = sentiment_match.group(1).lower()
-                sentiment_counts[sentiment] += 1
-            for t in theme_match:
-                themes[t.strip()] = {'sentiment': sentiment, 'count': themes.get(t.strip(), {}).get('count', 0) + 1}
+        themes = defaultdict(int)
 
+        for mention in mentions:
+            result = sentiment_model(mention)[0]
+            label = result['label'].lower()
+            sentiment_counts[label] += 1
+
+            keywords = keyword_extractor.extract_keywords(mention, keyphrase_ngram_range=(1, 2), stop_words='english', top_n=2)
+            for kw, _ in keywords:
+                themes[kw] += 1
+
+        # Visualization
         labels = [k.capitalize() for k in sentiment_counts.keys()]
         sizes = [v for v in sentiment_counts.values()]
         colors = ['#2ecc71', '#e74c3c', '#95a5a6'][:len(sizes)]
@@ -108,7 +77,12 @@ if run_analysis and product:
         ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, colors=colors)
         ax.axis('equal')
         st.pyplot(fig)
-        timeline_log.append({"step": "Sentiment Agent", "timestamp": str(datetime.datetime.now()), "status": f"Identified {len(sentiment_counts)} sentiment categories and {len(themes)} themes."})
+
+        st.markdown("**Top Themes:**")
+        for theme, count in sorted(themes.items(), key=lambda x: x[1], reverse=True)[:5]:
+            st.write(f"• {theme} ({count} mentions)")
+
+        timeline_log.append({"step": "Sentiment+Theme Agent", "timestamp": str(datetime.datetime.now()), "status": f"Analyzed {len(mentions)} posts."})
 
     # Step 3: Strategy Agent
     with st.expander("Step 3: Strategy Agent"):
@@ -157,12 +131,9 @@ if run_analysis and product:
         st.download_button("Download CSV", data=df.to_csv(index=False), file_name="agentic_report.csv")
 
     # Timeline summary
-    with st.expander("🤮 Agent Activity Timeline"):
+    with st.expander("🤖 Agent Activity Timeline"):
         st.markdown("Chronological log of each agent's action")
         st.json(timeline_log)
-
-    with st.expander("📊 GPT Token Usage Log"):
-        st.json(usage_log)
 
     st.markdown("---")
     st.markdown("© 2025 Agentic AI Demo")
