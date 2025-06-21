@@ -1,5 +1,5 @@
 # 📁 agentic_social_listening
-# Streamlit-based Agentic Social Listening Dashboard (RSS/News-Based Version)
+# Streamlit-based Agentic Social Listening Dashboard (RSS/News-Based Version + Optional LLM Strategy Agent)
 
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -12,6 +12,8 @@ import time
 from transformers import pipeline
 from keybert import KeyBERT
 import feedparser
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
 
 st.set_page_config(page_title="Agentic Social Listening Advisor", layout="wide")
 
@@ -102,9 +104,9 @@ if run_analysis and product:
 
         timeline_log.append({"step": "Sentiment+Theme Agent", "timestamp": str(datetime.datetime.now()), "status": f"Analyzed {len(mentions)} posts."})
 
-    # Step 3: Strategy Agent (Rules-Based)
-    with st.expander("Step 3: Strategy Agent (Rules-Based)"):
-        st.write("🤮 Generating recommendation using rule-based logic...")
+    # Step 3: Strategy Agent (Optional LLM or Rule-Based)
+    with st.expander("Step 3: Strategy Agent (Rule-Based + Optional LLM)"):
+        st.write("🧐 Generating recommendation using rules and optionally enhancing with LLM...")
 
         total_mentions = sum(sentiment_counts.values())
         positive_ratio = sentiment_counts['positive'] / total_mentions if total_mentions else 0
@@ -120,13 +122,23 @@ if run_analysis and product:
         top_theme = max(themes.items(), key=lambda x: x[1]["count"])[0] if themes else "product feedback"
         tweet = f"Thanks for your thoughts on {product}! We're exploring ways to improve {top_theme} based on your feedback."
 
+        # Optional LLM-enhanced version
+        if st.checkbox("Use open-source LLM to rewrite tweet?"):
+            with st.spinner("🤖 Enhancing tweet using TinyLlama..."):
+                tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+                model = AutoModelForCausalLM.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+                prompt = f"Rewrite this as a compelling brand tweet: {tweet}"
+                inputs = tokenizer(prompt, return_tensors="pt")
+                outputs = model.generate(**inputs, max_new_tokens=50)
+                tweet = tokenizer.decode(outputs[0], skip_special_tokens=True).replace(prompt, "")
+
         st.markdown("**Recommended Action:**")
         st.success(recommendation)
         st.markdown("**Suggested Tweet:**")
         st.code(tweet)
 
         strategy = {"recommendation": recommendation, "tweet": tweet}
-        timeline_log.append({"step": "Strategy Agent", "timestamp": str(datetime.datetime.now()), "status": "Generated rule-based action plan and draft tweet."})
+        timeline_log.append({"step": "Strategy Agent", "timestamp": str(datetime.datetime.now()), "status": "Generated rule-based action plan and tweet (LLM-enhanced optional)."})
 
     # Step 4: User Agent (Feedback)
     with st.expander("Step 4: Your Feedback (User Agent)"):
