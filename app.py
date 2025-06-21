@@ -41,14 +41,7 @@ if run_analysis and product:
         ]
         mentions = []
         for url in feed_urls:
-            st.subheader(f"📰 Raw Feed Preview for {url}")
             feed = feedparser.parse(url)
-            for entry in feed.entries[:5]:
-                st.write("🔹 Title:", entry.title)
-                st.write("🔹 Summary:", entry.get("summary", ""))
-                st.write("🔹 Link:", entry.link)
-                st.markdown("---")
-
             for entry in feed.entries:
                 if product.lower() in entry.title.lower() or product.lower() in entry.get("summary", "").lower():
                     mention_text = f"{entry.title}. {entry.get('summary', '')}"
@@ -103,7 +96,6 @@ if run_analysis and product:
 
     # Step 3: Strategy Agent (Rule-Based + Optional LLM)
     with st.expander("Step 3: Strategy Agent (Rule-Based + Optional LLM)"):
-        use_llm = st.checkbox("Use open-source LLM to rewrite tweet?")
         st.write("🤔 Generating recommendation using rules and optionally enhancing with LLM...")
 
         total_mentions = sum(sentiment_counts.values())
@@ -120,7 +112,10 @@ if run_analysis and product:
         top_theme = max(themes.items(), key=lambda x: x[1]["count"])[0] if themes else "product feedback"
         tweet = f"Thanks for your thoughts on {product}! We're exploring ways to improve {top_theme} based on your feedback."
 
-        if use_llm:
+        use_llm = st.checkbox("Use open-source LLM to rewrite tweet?")
+        enhance_btn = st.button("🔄 Enhance Tweet")
+
+        if use_llm and enhance_btn:
             with st.spinner("🤖 Enhancing tweet using distilgpt2..."):
                 tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
                 model = AutoModelForCausalLM.from_pretrained("distilgpt2")
@@ -136,12 +131,33 @@ if run_analysis and product:
         st.code(tweet)
 
         strategy = {"recommendation": recommendation, "tweet": tweet}
-        timeline_log.append({"step": "Strategy Agent", "timestamp": str(datetime.datetime.now()), "status": "Generated rule-based action plan and tweet (LLM-enhanced optional)."})
+        timeline_log.append({
+            "step": "Strategy Agent",
+            "timestamp": str(datetime.datetime.now()),
+            "status": "Generated rule-based action plan and tweet (LLM-enhanced optional)."
+        })
 
     # Step 4: User Agent (Feedback)
     with st.expander("Step 4: Your Feedback (User Agent)"):
-        st.info("Thank you for reviewing the recommendation. Your feedback helps us improve.")
-        timeline_log.append({"step": "User Agent Feedback", "timestamp": str(datetime.datetime.now()), "status": "Feedback module displayed."})
+        feedback = st.radio("Do you agree with the recommendation?", ["Yes", "No - Revise"], index=0)
+        if 'feedback_log' not in st.session_state:
+            st.session_state['feedback_log'] = []
+
+        feedback_entry = {'product': product, 'feedback': feedback, 'timestamp': str(datetime.datetime.now())}
+
+        if feedback == "No - Revise":
+            revised_input = st.text_area("What would you like the strategy to focus on instead?")
+            if revised_input:
+                feedback_entry['revision'] = revised_input
+                st.warning("Strategy agent would re-run with your revised focus.")
+                timeline_log.append({"step": "User Agent Revision", "timestamp": str(datetime.datetime.now()), "status": "Received revision input from user."})
+        else:
+            timeline_log.append({"step": "User Agent Feedback", "timestamp": str(datetime.datetime.now()), "status": "User agreed with recommendation."})
+
+        st.session_state['feedback_log'].append(feedback_entry)
+
+        st.markdown("**Session Feedback Log:**")
+        st.json(st.session_state['feedback_log'])
 
     output_records.append({
         'product': product,
