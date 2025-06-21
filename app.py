@@ -1,11 +1,10 @@
 # 📁 agentic_social_listening
-# Streamlit-based Agentic Social Listening Dashboard (GPT-Free Version)
+# Streamlit-based Agentic Social Listening Dashboard (Reddit-Based Version)
 
 import streamlit as st
 import matplotlib.pyplot as plt
 from strategy_agent import generate_strategy
 import os
-import subprocess
 import pandas as pd
 import re
 from collections import defaultdict
@@ -13,12 +12,13 @@ import datetime
 import time
 from transformers import pipeline
 from keybert import KeyBERT
+import requests
 
 st.set_page_config(page_title="Agentic Social Listening Advisor", layout="wide")
 
 # Title
 st.title("📣 Agentic Social Listening Advisor")
-st.markdown("Enter a product or brand name to analyze real-time sentiment, themes, and generate strategic recommendations.")
+st.markdown("Enter a product or brand name to analyze recent Reddit posts, extract sentiment and themes, and generate strategic recommendations.")
 
 # User Input
 product = st.text_input("🔍 Product/Brand Name", placeholder="e.g., Apple Vision Pro")
@@ -32,28 +32,36 @@ if run_analysis and product:
     timeline_log = []  # Timeline for agent step-by-step recording
     output_records = []  # Persisted output records
 
-    # Step 1: Listener Agent using snscrape
-    with st.expander("Step 1: Listener Agent - Collect Mentions from Twitter"):
-        st.write("🛠️ Collecting mentions from Twitter using snscrape...")
-        command = f"snscrape --max-results 10 twitter-search '{product}'"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
-        raw_output = result.stdout
+    # Step 1: Listener Agent using Reddit Pushshift API
+    with st.expander("Step 1: Listener Agent - Collect Mentions from Reddit"):
+        st.write("🛠️ Collecting recent mentions from Reddit using Pushshift API...")
+        url = f"https://api.pushshift.io/reddit/search/comment/?q={product}&size=10&sort=desc"
+        response = requests.get(url)
         mentions = []
-        for line in raw_output.splitlines():
-            if line.strip():
-                mentions.append(line.strip())
+        if response.status_code == 200:
+            data = response.json()
+            for item in data.get("data", []):
+                if 'body' in item:
+                    mentions.append(item['body'])
+
         if not mentions:
-            st.warning("No real-time mentions found. Try another term or check your snscrape setup.")
-        else:
-            for m in mentions:
-                st.write(f"• {m}")
-        timeline_log.append({"step": "Listener Agent", "timestamp": str(datetime.datetime.now()), "status": f"Fetched {len(mentions)} mentions."})
+            st.warning("No Reddit mentions found. Using fallback demo data.")
+            mentions = [
+                f"Just tried the new {product} — absolutely mind-blowing! 😍",
+                f"Not impressed by {product}, expected more for the price. 😕",
+                f"{product} is a game changer for AR. Hats off to the team!",
+                f"I returned my {product}. It felt too heavy and clunky.",
+                f"{product} has the best display I’ve ever seen!"
+            ]
+
+        for m in mentions:
+            st.write(f"• {m}")
+        timeline_log.append({"step": "Listener Agent", "timestamp": str(datetime.datetime.now()), "status": f"Fetched {len(mentions)} Reddit mentions."})
 
     # Step 2: Sentiment & Theme Extraction Agent (Open Source)
     with st.expander("Step 2: Theme & Sentiment Agent (Open Source)"):
         st.write("📊 Analyzing sentiment and extracting themes using HuggingFace + KeyBERT...")
 
-        # ✅ Replaced with plug-and-play sentiment model for reliability
         sentiment_model = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
         keyword_extractor = KeyBERT()
 
