@@ -12,7 +12,8 @@ import re
 from collections import defaultdict
 import datetime
 import time
-import openai.error
+import openai
+from openai.error import RateLimitError, OpenAIError
 
 st.set_page_config(page_title="Agentic Social Listening Advisor", layout="wide")
 
@@ -39,10 +40,10 @@ def safe_chat_completion(client, model, messages, retries=3, delay=5):
             usage = response.usage if hasattr(response, 'usage') else {}
             usage_log.append({"timestamp": str(datetime.datetime.now()), "tokens": usage})
             return response
-        except openai.error.RateLimitError:
+        except RateLimitError:
             st.warning(f"Rate limit hit. Retrying ({attempt + 1}/{retries}) in {delay} seconds...")
             time.sleep(delay * (attempt + 1))
-        except openai.error.OpenAIError as e:
+        except OpenAIError as e:
             st.error(f"OpenAI API error: {str(e)}")
             break
     st.error("❌ GPT API failed after multiple retries.")
