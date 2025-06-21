@@ -13,6 +13,7 @@ from collections import defaultdict
 import datetime
 import time
 import openai
+from openai.error import RateLimitError, OpenAIError
 
 st.set_page_config(page_title="Agentic Social Listening Advisor", layout="wide")
 
@@ -39,10 +40,10 @@ def safe_chat_completion(client, model, messages, retries=3, delay=5):
             usage = response.usage if hasattr(response, 'usage') else {}
             usage_log.append({"timestamp": str(datetime.datetime.now()), "tokens": usage})
             return response
-        except openai.error.RateLimitError:
+        except RateLimitError:
             st.warning(f"Rate limit hit. Retrying ({attempt + 1}/{retries}) in {delay} seconds...")
             time.sleep(delay * (attempt + 1))
-        except openai.error.OpenAIError as e:
+        except OpenAIError as e:
             st.error(f"OpenAI API error: {str(e)}")
             break
     st.error("❌ GPT API failed after multiple retries.")
@@ -74,9 +75,9 @@ if run_analysis and product:
     # Step 2: Theme+Sentiment Agent with GPT-4o
     with st.expander("Step 2: Theme & Sentiment Agent (GPT-4o Powered)"):
         st.write("📊 Analyzing sentiment and extracting major themes with GPT-4o...")
-        openai = OpenAI(api_key=OPENAI_API_KEY)
+        openai_client = OpenAI(api_key=OPENAI_API_KEY)
         response = safe_chat_completion(
-            openai,
+            openai_client,
             "gpt-4o",
             [
                 {"role": "system", "content": "You are a social insights analyst. Classify sentiment (Positive, Negative, Neutral) for each post, and extract top 3 common themes."},
