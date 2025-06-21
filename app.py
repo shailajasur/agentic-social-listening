@@ -11,6 +11,8 @@ import pandas as pd
 import re
 from collections import defaultdict
 import datetime
+import time
+import openai.error
 
 st.set_page_config(page_title="Agentic Social Listening Advisor", layout="wide")
 
@@ -26,6 +28,25 @@ product = st.text_input("🔍 Product/Brand Name", placeholder="e.g., Apple Visi
 
 # Trigger button
 run_analysis = st.button("Run Analysis")
+
+# Retry wrapper for GPT call with usage logging
+usage_log = []
+
+def safe_chat_completion(client, model, messages, retries=3, delay=5):
+    for attempt in range(retries):
+        try:
+            response = client.chat.completions.create(model=model, messages=messages)
+            usage = response.usage if hasattr(response, 'usage') else {}
+            usage_log.append({"timestamp": str(datetime.datetime.now()), "tokens": usage})
+            return response
+        except openai.error.RateLimitError:
+            st.warning(f"Rate limit hit. Retrying ({attempt + 1}/{retries}) in {delay} seconds...")
+            time.sleep(delay * (attempt + 1))
+        except openai.error.OpenAIError as e:
+            st.error(f"OpenAI API error: {str(e)}")
+            break
+    st.error("❌ GPT API failed after multiple retries.")
+    return None
 
 if run_analysis and product:
     st.markdown("---")
@@ -54,13 +75,17 @@ if run_analysis and product:
     with st.expander("Step 2: Theme & Sentiment Agent (GPT-4o Powered)"):
         st.write("📊 Analyzing sentiment and extracting major themes with GPT-4o...")
         openai = OpenAI(api_key=OPENAI_API_KEY)
-        response = openai.chat.completions.create(
-            model="gpt-4o",
-            messages=[
+        response = safe_chat_completion(
+            openai,
+            "gpt-4o",
+            [
                 {"role": "system", "content": "You are a social insights analyst. Classify sentiment (Positive, Negative, Neutral) for each post, and extract top 3 common themes."},
                 {"role": "user", "content": f"Here are the mentions:\n" + "\n".join(mentions)}
             ]
         )
+        if not response:
+            st.stop()
+
         parsed = response.choices[0].message.content
         st.markdown("**GPT Analysis Output:**")
         st.text(parsed)
@@ -132,9 +157,12 @@ if run_analysis and product:
         st.download_button("Download CSV", data=df.to_csv(index=False), file_name="agentic_report.csv")
 
     # Timeline summary
-    with st.expander("🧠 Agent Activity Timeline"):
+    with st.expander("🧐 Agent Activity Timeline"):
         st.markdown("Chronological log of each agent's action")
         st.json(timeline_log)
+
+    with st.expander("📊 GPT Token Usage Log"):
+        st.json(usage_log)
 
     st.markdown("---")
     st.markdown("© 2025 Agentic AI Demo")
