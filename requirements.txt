@@ -9,3 +9,4 @@ keybert
 sentence-transformers
 feedparser
 scikit-learn
+transformers==4.40.0
