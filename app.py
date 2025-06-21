@@ -3,7 +3,6 @@
 
 import streamlit as st
 import matplotlib.pyplot as plt
-from strategy_agent import generate_strategy_llm
 import os
 import pandas as pd
 import re
@@ -13,8 +12,6 @@ import time
 from transformers import pipeline
 from keybert import KeyBERT
 import feedparser
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
 
 st.set_page_config(page_title="Agentic Social Listening Advisor", layout="wide")
 
@@ -105,15 +102,31 @@ if run_analysis and product:
 
         timeline_log.append({"step": "Sentiment+Theme Agent", "timestamp": str(datetime.datetime.now()), "status": f"Analyzed {len(mentions)} posts."})
 
-    # Step 3: Strategy Agent with LLM
-    with st.expander("Step 3: Strategy Agent (LLM-Based)"):
-        st.write("🧐 Generating recommendation using open-source LLM...")
-        strategy = generate_strategy_llm(sentiment_counts, themes, product)
+    # Step 3: Strategy Agent (Rules-Based)
+    with st.expander("Step 3: Strategy Agent (Rules-Based)"):
+        st.write("🤮 Generating recommendation using rule-based logic...")
+
+        total_mentions = sum(sentiment_counts.values())
+        positive_ratio = sentiment_counts['positive'] / total_mentions if total_mentions else 0
+        negative_ratio = sentiment_counts['negative'] / total_mentions if total_mentions else 0
+
+        if negative_ratio > 0.5:
+            recommendation = f"Address the major concerns around {product}. Consider public Q&A or an apology campaign."
+        elif positive_ratio > 0.7:
+            recommendation = f"Capitalize on the positive buzz around {product}. Launch a referral or testimonial campaign."
+        else:
+            recommendation = f"Monitor {product} feedback closely. Consider targeted surveys to better understand user sentiment."
+
+        top_theme = max(themes.items(), key=lambda x: x[1]["count"])[0] if themes else "product feedback"
+        tweet = f"Thanks for your thoughts on {product}! We're exploring ways to improve {top_theme} based on your feedback."
+
         st.markdown("**Recommended Action:**")
-        st.success(strategy['recommendation'])
+        st.success(recommendation)
         st.markdown("**Suggested Tweet:**")
-        st.code(strategy['tweet'])
-        timeline_log.append({"step": "Strategy Agent", "timestamp": str(datetime.datetime.now()), "status": "Generated action plan and draft tweet using LLM."})
+        st.code(tweet)
+
+        strategy = {"recommendation": recommendation, "tweet": tweet}
+        timeline_log.append({"step": "Strategy Agent", "timestamp": str(datetime.datetime.now()), "status": "Generated rule-based action plan and draft tweet."})
 
     # Step 4: User Agent (Feedback)
     with st.expander("Step 4: Your Feedback (User Agent)"):
