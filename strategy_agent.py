@@ -1,29 +1,30 @@
+# strategy_agent.py
+
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
 def generate_strategy_llm(sentiment_counts, themes, product_name):
-    model_name = "tiiuae/falcon-7b-instruct"
+    model_name = "sshleifer/tiny-gpt2"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(model_name)
 
     sentiment_summary = ", ".join([f"{k}: {v}" for k, v in sentiment_counts.items()])
-    top_themes = ", ".join(sorted(themes.keys(), key=lambda k: themes[k]['count'], reverse=True)[:5])
+    top_themes = ", ".join(sorted(themes.keys(), key=lambda k: themes[k]['count'], reverse=True)[:3])
 
     prompt = (
-        f"You are a marketing strategist.\n"
         f"Product: {product_name}\n"
-        f"Sentiment breakdown: {sentiment_summary}\n"
-        f"Key themes: {top_themes}\n\n"
-        f"Give a strategic recommendation and a suggested tweet in response to this data."
+        f"Sentiment: {sentiment_summary}\n"
+        f"Themes: {top_themes}\n"
+        f"What should the company do? Provide a strategy and a tweet."
     )
 
-    inputs = tokenizer(prompt, return_tensors="pt")
-    outputs = model.generate(**inputs, max_new_tokens=150)
-    generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True)
+    outputs = model.generate(**inputs, max_new_tokens=100)
+    generated = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-    # Postprocess to split recommendation and tweet if structured properly
-    recommendation = generated_text.split("Suggested tweet:")[0].strip()
-    tweet = generated_text.split("Suggested tweet:")[-1].strip()
+    # Fallback parsing logic
+    recommendation = generated.split("\n")[0]
+    tweet = generated.split("\n")[1] if len(generated.split("\n")) > 1 else "Thanks for your feedback!"
 
     return {
         "recommendation": recommendation,
