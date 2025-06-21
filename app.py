@@ -103,7 +103,8 @@ if run_analysis and product:
 
     # Step 3: Strategy Agent (Rule-Based + Optional LLM)
     with st.expander("Step 3: Strategy Agent (Rule-Based + Optional LLM)"):
-        st.write("🧐 Generating recommendation using rules and optionally enhancing with LLM...")
+        use_llm = st.checkbox("Use open-source LLM to rewrite tweet?")
+        st.write("🤔 Generating recommendation using rules and optionally enhancing with LLM...")
 
         total_mentions = sum(sentiment_counts.values())
         positive_ratio = sentiment_counts['positive'] / total_mentions if total_mentions else 0
@@ -119,7 +120,6 @@ if run_analysis and product:
         top_theme = max(themes.items(), key=lambda x: x[1]["count"])[0] if themes else "product feedback"
         tweet = f"Thanks for your thoughts on {product}! We're exploring ways to improve {top_theme} based on your feedback."
 
-        use_llm = st.toggle("Use open-source LLM to rewrite tweet?", value=False)
         if use_llm:
             with st.spinner("🤖 Enhancing tweet using distilgpt2..."):
                 tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
@@ -144,19 +144,18 @@ if run_analysis and product:
         if 'feedback_log' not in st.session_state:
             st.session_state['feedback_log'] = []
 
-        st.session_state['feedback_log'].append({
-            'product': product,
-            'feedback': feedback
-        })
+        feedback_entry = {'product': product, 'feedback': feedback, 'timestamp': str(datetime.datetime.now())}
 
         if feedback == "No - Revise":
             revised_input = st.text_area("What would you like the strategy to focus on instead?")
             if revised_input:
-                st.session_state['feedback_log'][-1]['revision'] = revised_input
+                feedback_entry['revision'] = revised_input
                 st.warning("Strategy agent would re-run with your revised focus.")
                 timeline_log.append({"step": "User Agent Revision", "timestamp": str(datetime.datetime.now()), "status": "Received revision input from user."})
         else:
-            timeline_log.append({"step": "User Agent Feedback", "timestamp": str(datetime.datetime.now()), "status": f"User agreed with recommendation."})
+            timeline_log.append({"step": "User Agent Feedback", "timestamp": str(datetime.datetime.now()), "status": "User agreed with recommendation."})
+
+        st.session_state['feedback_log'].append(feedback_entry)
 
         st.markdown("**Session Feedback Log:**")
         st.json(st.session_state['feedback_log'])
