@@ -13,7 +13,6 @@ from collections import defaultdict
 import datetime
 import time
 import openai
-from openai.error import RateLimitError, OpenAIError
 
 st.set_page_config(page_title="Agentic Social Listening Advisor", layout="wide")
 
@@ -40,10 +39,10 @@ def safe_chat_completion(client, model, messages, retries=3, delay=5):
             usage = response.usage if hasattr(response, 'usage') else {}
             usage_log.append({"timestamp": str(datetime.datetime.now()), "tokens": usage})
             return response
-        except RateLimitError:
+        except openai.RateLimitError:
             st.warning(f"Rate limit hit. Retrying ({attempt + 1}/{retries}) in {delay} seconds...")
             time.sleep(delay * (attempt + 1))
-        except OpenAIError as e:
+        except openai.OpenAIError as e:
             st.error(f"OpenAI API error: {str(e)}")
             break
     st.error("❌ GPT API failed after multiple retries.")
@@ -158,7 +157,7 @@ if run_analysis and product:
         st.download_button("Download CSV", data=df.to_csv(index=False), file_name="agentic_report.csv")
 
     # Timeline summary
-    with st.expander("🧐 Agent Activity Timeline"):
+    with st.expander("🤮 Agent Activity Timeline"):
         st.markdown("Chronological log of each agent's action")
         st.json(timeline_log)
 
