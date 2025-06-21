@@ -1,11 +1,9 @@
 streamlit
 matplotlib
-openai
 pandas
+scikit-learn
 transformers
+torch
 keybert
 sentence-transformers
 feedparser
-scikit-learn
-transformers==4.40.0
-TinyLlama

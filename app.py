@@ -9,11 +9,9 @@ import re
 from collections import defaultdict
 import datetime
 import time
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from keybert import KeyBERT
 import feedparser
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
 
 st.set_page_config(page_title="Agentic Social Listening Advisor", layout="wide")
 
@@ -45,7 +43,7 @@ if run_analysis and product:
         for url in feed_urls:
             st.subheader(f"📰 Raw Feed Preview for {url}")
             feed = feedparser.parse(url)
-            for entry in feed.entries[:5]:  # Show a few entries for debug
+            for entry in feed.entries[:5]:
                 st.write("🔹 Title:", entry.title)
                 st.write("🔹 Summary:", entry.get("summary", ""))
                 st.write("🔹 Link:", entry.link)
@@ -89,7 +87,6 @@ if run_analysis and product:
             for kw, _ in keywords:
                 themes[kw]["count"] += 1
 
-        # Visualization
         labels = [k.capitalize() for k in sentiment_counts.keys()]
         sizes = [v for v in sentiment_counts.values()]
         colors = ['#2ecc71', '#e74c3c', '#95a5a6'][:len(sizes)]
@@ -104,7 +101,7 @@ if run_analysis and product:
 
         timeline_log.append({"step": "Sentiment+Theme Agent", "timestamp": str(datetime.datetime.now()), "status": f"Analyzed {len(mentions)} posts."})
 
-    # Step 3: Strategy Agent (Optional LLM or Rule-Based)
+    # Step 3: Strategy Agent (Rule-Based + Optional LLM)
     with st.expander("Step 3: Strategy Agent (Rule-Based + Optional LLM)"):
         st.write("🧐 Generating recommendation using rules and optionally enhancing with LLM...")
 
@@ -122,15 +119,15 @@ if run_analysis and product:
         top_theme = max(themes.items(), key=lambda x: x[1]["count"])[0] if themes else "product feedback"
         tweet = f"Thanks for your thoughts on {product}! We're exploring ways to improve {top_theme} based on your feedback."
 
-        # Optional LLM-enhanced version
         if st.checkbox("Use open-source LLM to rewrite tweet?"):
-            with st.spinner("🤖 Enhancing tweet using TinyLlama..."):
-                tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
-                model = AutoModelForCausalLM.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+            with st.spinner("🤖 Enhancing tweet using distilgpt2..."):
+                tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
+                model = AutoModelForCausalLM.from_pretrained("distilgpt2")
                 prompt = f"Rewrite this as a compelling brand tweet: {tweet}"
                 inputs = tokenizer(prompt, return_tensors="pt")
-                outputs = model.generate(**inputs, max_new_tokens=50)
-                tweet = tokenizer.decode(outputs[0], skip_special_tokens=True).replace(prompt, "")
+                outputs = model.generate(**inputs, max_new_tokens=50, do_sample=True)
+                generated = tokenizer.decode(outputs[0], skip_special_tokens=True)
+                tweet = generated.replace(prompt, "").strip()
 
         st.markdown("**Recommended Action:**")
         st.success(recommendation)
@@ -163,7 +160,6 @@ if run_analysis and product:
         st.markdown("**Session Feedback Log:**")
         st.json(st.session_state['feedback_log'])
 
-    # Persist timeline + strategy output to DataFrame
     output_records.append({
         'product': product,
         'sentiment': dict(sentiment_counts),
@@ -176,7 +172,6 @@ if run_analysis and product:
     with st.expander("📁 Download Results as CSV"):
         st.download_button("Download CSV", data=df.to_csv(index=False), file_name="agentic_report.csv")
 
-    # Timeline summary
     with st.expander("🤖 Agent Activity Timeline"):
         st.markdown("Chronological log of each agent's action")
         st.json(timeline_log)
