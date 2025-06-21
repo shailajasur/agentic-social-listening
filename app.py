@@ -66,7 +66,7 @@ if run_analysis and product:
         keyword_extractor = KeyBERT()
 
         sentiment_counts = defaultdict(int)
-        themes = defaultdict(int)
+        themes = defaultdict(lambda: {"count": 0})
 
         for mention in mentions:
             result = sentiment_model(mention)[0]
@@ -75,7 +75,7 @@ if run_analysis and product:
 
             keywords = keyword_extractor.extract_keywords(mention, keyphrase_ngram_range=(1, 2), stop_words='english', top_n=2)
             for kw, _ in keywords:
-                themes[kw] += 1
+                themes[kw]["count"] += 1
 
         # Visualization
         labels = [k.capitalize() for k in sentiment_counts.keys()]
@@ -87,14 +87,14 @@ if run_analysis and product:
         st.pyplot(fig)
 
         st.markdown("**Top Themes:**")
-        for theme, count in sorted(themes.items(), key=lambda x: x[1], reverse=True)[:5]:
-            st.write(f"• {theme} ({count} mentions)")
+        for theme, meta in sorted(themes.items(), key=lambda x: x[1]["count"], reverse=True)[:5]:
+            st.write(f"• {theme} ({meta['count']} mentions)")
 
         timeline_log.append({"step": "Sentiment+Theme Agent", "timestamp": str(datetime.datetime.now()), "status": f"Analyzed {len(mentions)} posts."})
 
     # Step 3: Strategy Agent
     with st.expander("Step 3: Strategy Agent"):
-        st.write("🧐 Generating recommendation based on sentiment and themes...")
+        st.write("🤔 Generating recommendation based on sentiment and themes...")
         strategy = generate_strategy(sentiment_counts, themes)
         st.markdown("**Recommended Action:**")
         st.success(strategy['recommendation'])
